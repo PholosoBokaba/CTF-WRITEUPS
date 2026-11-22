@@ -3,7 +3,7 @@
 **Tools:** `nmap`, `hydra`, `dirb`, `cadaver`, Metasploit (`smb_login`, `smb_enumshares`)
 ---
 ##STEP 0 :scan target1
-‘’’bash
+‘’’
 Nmap -sV -sC target1.ine.local.com -O -oX scan_results
 ‘’’
 <img width="940" height="725" alt="image" src="https://github.com/user-attachments/assets/4b3c549d-7b43-4adf-af9b-5f5235e90064" />
