@@ -4,9 +4,9 @@
 **TOOLS:** ‘nmap’,  ‘smbclient’, Metaploit(‘smb_enumusers’, ‘smb_login’), ‘hydra’, ‘FTP’, ‘SSH’
 ---
 ##Step 0: Scan the target
-‘’’
+```
 nmap -sC -sV -O <target-ip> -oX <filename>
-‘’’
+```
 <img width="940" height="552" alt="image" src="https://github.com/user-attachments/assets/ac7dba19-f97e-4534-999d-3904e91fecb1" />
 
 Samba matches the lab’s own hint abou the anonymous share, so that’s where I started.
