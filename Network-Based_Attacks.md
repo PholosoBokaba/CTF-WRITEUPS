@@ -31,7 +31,7 @@ nc -nv -p199 <target-ip>
 <img width="931" height="265" alt="image" src="https://github.com/user-attachments/assets/60b01adf-d5bf-42e3-8db0-29800116b55b" />
 
 
-Port 199 seemed like an obvious guessgiven the service's own hint about a "mgmt source port" - but was still refused. i tried a different trusted source-port instead.
+Port 199 seemed like an obvious guessgiven the service's own hint about a `mgmt source port` - but was still refused. i tried a different trusted source-port instead.
 
 ```
 sudo ncat -v --source-port 53 <target-ip> 13337
@@ -40,7 +40,7 @@ sudo ncat -v --source-port 53 <target-ip> 13337
 
 **Why Port 53:** Many internal firewalls and services allow-lists treat traffic **from** port 53 (DNS) as inherently trusted, since DNS servers reply from that port and that traffic is rarely blocked.This "NETDIAG" service was clearly built to trust only connections that claim to originate form a recognised management port - and 53 was accepeted where 199 was not.
 
-**How it works:** 'ncat --source-port'(like 'nc-p') lets you choose the local TCP source port a connnection is made from, instead of letting the OS pick one at random. Normally this doesn't matter, but a service chekcs the *Clients* port number as a (weak) form of access control can be tricked simply by choosing the port it expects.
+**How it works:** `ncat --source-port`(like `nc-p`) lets you choose the local TCP source port a connnection is made from, instead of letting the OS pick one at random. Normally this doesn't matter, but a service chekcs the *Clients* port number as a (weak) form of access control can be tricked simply by choosing the port it expects.
 **Results:** The service responded with: 
 <img width="931" height="265" alt="image" src="https://github.com/user-attachments/assets/869949b8-c48c-4c21-9aee-6c8d0e46b629" />
 
@@ -57,8 +57,8 @@ onesixtyone -c /usr/share/seclists/Discovery/SNMP/snmp-onesixtyone.txt <target-i
 ```
 <img width="940" height="469" alt="image" src="https://github.com/user-attachments/assets/4cd195be-c181-4830-a47e-68c7a22794b6" />
 
-**WHY:** SNMPv1 has no rela authentication, just a shared "community string" that acts like a password, and it's commonly guessable. 'onesixtyone' is builty specifically to bruteforce commmunity strings quickly against a target.
-**Result:** The commmunity string **'mngt'** worked
+**WHY:** SNMPv1 has no rela authentication, just a shared `community string` that acts like a password, and it's commonly guessable. `onesixtyone` is builty specifically to bruteforce commmunity strings quickly against a target.
+**Result:** The commmunity string **`mngt`** worked
 ```
 snmpwalk -v2c -c mngt <target-ip> 1.3.6.1.4.1.8072.1.3.2
 ```
@@ -66,11 +66,11 @@ snmpwalk -v2c -c mngt <target-ip> 1.3.6.1.4.1.8072.1.3.2
 
 
 **How it works:** The OID i queried ('1.3.6.1.4.1.8072.1.3.2') is the **NET-SNMP-EXTEND-MIB** subtree, which is exposes the output of arbitrary shell commands the administrator has configured SNMP to run and report on, essentiallly a backdoor for legitimate monitoring, but readable by anyone who has the community string.
-**Results:** the walk revealed the outpu of commmands including '/bin/cat/etc/snmp/flag2', and a maintanance note left as one of the monitored values:
+**Results:** the walk revealed the outpu of commmands including `/bin/cat/etc/snmp/flag2`, and a maintanance note left as one of the monitored values:
 <img width="940" height="532" alt="image" src="https://github.com/user-attachments/assets/7ab3c1ce-98d0-474d-a38f-27766ff85038" />
 
 
-This also names the account for later tasks: **'svc_backup'**, with both SMB nad SSH access.
+This also names the account for later tasks: **`svc_backup`**, with both SMB nad SSH access.
 ---
 ##FLAG 3: Enumerating file services without credentials
 
@@ -81,7 +81,7 @@ smbclient -L //<target-ip>
 <img width="940" height="365" alt="image" src="https://github.com/user-attachments/assets/1359ec20-f747-47df-ad6b-6af766215dd2" />
 
 
-**Why:** '-L' with no credentials lists whatever shares the server allows anonymous clinets to see.
+**Why:** `-L` with no credentials lists whatever shares the server allows anonymous clinets to see.
 **Results:** two commmon share, 'public'and 'backup. The server identified itself as 'BR-EDGE01' in worksgroup 'ASHCROFT'.
 ```
 smbclient //<target-ip>/public 
@@ -95,7 +95,7 @@ smbclient //<target-ip>/public
 ##FLAG4
 
 ##WHAT I DID
-with 'svc_backup' already named by the SNMP note, i confirmed the account exists and then targeted it specifically:
+with `svc_backup` already named by the SNMP note, i confirmed the account exists and then targeted it specifically:
 ```
 nmap --script smb-enum-users <target-ip>
 ```
@@ -108,8 +108,8 @@ hydra -L users.txt -P /usr/share/metasploit-framework/data/wordlists/unix_passwo
 ```
 <img width="940" height="597" alt="image" src="https://github.com/user-attachments/assets/3cbf3817-3b55-4621-a480-54b65b44ea92" />
 
-**Why:** rather than guess at random accounts. I built a small username list containing 'svc_backup'(and other likely names) since SNMP has alreasy told me exactly which account to target, and ran it against a standard password wordlist.
-**Result:** 'svc_backup: chocolate' succeeded.
+**Why:** rather than guess at random accounts. I built a small username list containing `svc_backup`(and other likely names) since SNMP has already told me exactly which account to target, and ran it against a standard password wordlist.
+**Result:** `svc_backup: chocolate` succeeded.
 ```
 smbclient //<target-ip>/backup -U svc_backup
 ```
@@ -121,7 +121,7 @@ smb: \> more flag4.txt
 <img width="940" height="272" alt="image" src="https://github.com/user-attachments/assets/f3e77314-8bd1-4f10-afbb-90351509c731" />
 
 
-this is the key to flag : theres a second, ineternal-only host('file 02' /'target2.ine.local') taht will only accept connnections whicih originate form 'BR-EDGE01' itself. Meaning i need to pivot **through** this box, not just connnect to it directly.
+this is the key to flag : theres a second, ineternal-only host(`file 02' /'target2.ine.local`) taht will only accept connnections whicih originate form `BR-EDGE01` itself. Meaning i need to pivot **through** this box, not just connnect to it directly.
 ---
 
 ##FLAG 5: Reaching the internal file server(pivoting)
@@ -135,28 +135,28 @@ getent hosts target2.ine.local
 <img width="940" height="525" alt="image" src="https://github.com/user-attachments/assets/d3eb0f78-a986-4701-84b0-e447b31e43b1" />
 
 **why:** the restricted share's note said FILE02 only accepts connections from BR-EDGE01, so i needed to actually be making requests that oroiginate from that host's own network interface, not just know its IP.
-**Results:** 'target1' turned out to be **dual-homed**. one interface('eth0','192.184.117.3/24') facing where I connnect from, and a second (`eth1`, `192.200.215.2/24`) facing an internal network where 'target2.ine.local' actually lives. this confirms BR-EDGE01 is acting as a gateway host between the two network.
+**Results:** 'target1' turned out to be **dual-homed**. one interface(`eth0`,`192.184.117.3/24`) facing where I connnect from, and a second (`eth1`, `192.200.215.2/24`) facing an internal network where 'target2.ine.local' actually lives. this confirms BR-EDGE01 is acting as a gateway host between the two network.
 ##Setting up the host
 ```
 ssh -D 1080 svc_backup@<target1-ip>
 ```
 <img width="940" height="470" alt="image" src="https://github.com/user-attachments/assets/6870cb62-85dd-45ff-ac86-025e0fc24375" />
 
-**How it works:** '-D 1080' turns this ssh connection into a **SOCK proxy** listening on my local machine's port 1080. Any application that sends its traffic through that SOCKS proxy will have its connection tunnelled over the existing SSH session and come out the *other end*. from target1.ine.local own network interface, instead of from machine directly. This is exactly what's needed to reach 'target2.ine.local', since it only trusts connnection that originate from BR-EDGE01.
+**How it works:** `-D 1080` turns this ssh connection into a **SOCK proxy** listening on my local machine's port 1080. Any application that sends its traffic through that SOCKS proxy will have its connection tunnelled over the existing SSH session and come out the *other end*. from target1.ine.local own network interface, instead of from machine directly. This is exactly what's needed to reach `target2.ine.local`, since it only trusts connnection that originate from BR-EDGE01.
 ```
 nano /etc/proxychains4.conf
 #sock5 127.0.0.1 1080
 ```
 <img width="940" height="735" alt="image" src="https://github.com/user-attachments/assets/02014e3e-5860-484a-9f35-0c6258ad0772" />
 
-**Why proxychains:** most ordinary tools(like 'smbclient') dont have built-in SOCKS proxy support. 'proxychains' transparently forces any command's network connection through the configured proxy instead, so 'smbclient' can be used unmodified.
+**Why proxychains:** most ordinary tools(like `smbclient`) dont have built-in SOCKS proxy support. `proxychains` transparently forces any command's network connection through the configured proxy instead, so `smbclient` can be used unmodified.
 
 ```
 proxychains smbclient -L //192.200.215.3
 ```
 <img width="940" height="678" alt="image" src="https://github.com/user-attachments/assets/b35f7137-1b45-470b-bdc6-7fe8fa2ede25" />
 
-**Results:** routed through he pivot, I could now see 'target2.ine.local' shares: 'dropbox' and 'sql-backups'.
+**Results:** routed through he pivot, I could now see `target2.ine.local` shares: `dropbox` and `sql-backups`.
 
 ```
 proxychains smbclient //<target-ip>/dropbox
